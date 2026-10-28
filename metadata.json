@@ -1,0 +1,6 @@
+{
+  "name": "Retoucher Pro - Quitar Fondo y Redimensionar Lienzo",
+  "description": "Elimina el fondo de cualquier imagen al instante, ajusta dimensiones sin deformar la foto y exporta en PNG transparente o JPG con colores personalizados.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
