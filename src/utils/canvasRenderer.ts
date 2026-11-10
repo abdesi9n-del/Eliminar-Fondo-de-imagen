@@ -295,3 +295,17 @@ export function downloadBlob(blob: Blob, fileName: string) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/**
+ * Converts an HTMLImageElement to an RGBA PNG DataURL with an active alpha channel for erasing
+ */
+export function imageToPngDataUrl(img: HTMLImageElement): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.drawImage(img, 0, 0);
+  }
+  return canvas.toDataURL('image/png');
+}

@@ -13,7 +13,8 @@ import {
   Check,
   Feather,
   Zap,
-  Sparkles
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 import { 
   BackgroundConfig, 
@@ -49,6 +50,8 @@ interface EditorCanvasProps {
   onApplyImageEdit: (newDataUrl: string) => void;
   removalLevel: RemovalLevel;
   onSelectRemovalLevel: (level: RemovalLevel) => void;
+  onTriggerAiRemoval?: () => void;
+  onResetToOriginal?: () => void;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -68,6 +71,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onApplyImageEdit,
   removalLevel,
   onSelectRemovalLevel,
+  onTriggerAiRemoval,
+  onResetToOriginal,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -442,6 +447,35 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 <Zap className="w-3.5 h-3.5 text-purple-400" />
                 <span>Profundo</span>
               </button>
+            </div>
+          </>
+        )}
+
+        {/* Quick Action: Apply AI Background Removal or Reset to Original Image */}
+        {(onTriggerAiRemoval || onResetToOriginal) && (
+          <>
+            <div className="h-4 w-px bg-neutral-700 mx-1"></div>
+            <div className="flex items-center space-x-1 pl-0.5">
+              {onTriggerAiRemoval && (
+                <button
+                  onClick={onTriggerAiRemoval}
+                  title="Eliminar todo el fondo con Inteligencia Artificial"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 text-indigo-300 hover:text-white bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 transition-all"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="hidden sm:inline">Quitar con IA</span>
+                </button>
+              )}
+              {onResetToOriginal && (
+                <button
+                  onClick={onResetToOriginal}
+                  title="Cargar la imagen original completa para seleccionar y borrar partes manualmente"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 text-neutral-400 hover:text-white hover:bg-neutral-800/50 transition-all"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Origen</span>
+                </button>
+              )}
             </div>
           </>
         )}

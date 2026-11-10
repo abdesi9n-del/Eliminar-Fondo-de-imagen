@@ -82,6 +82,8 @@ export interface BrushSettings {
 
 export type RemovalLevel = 'soft' | 'standard' | 'deep';
 
+export type InitialStartMode = 'ai-auto' | 'manual-original';
+
 export interface RemovalLevelInfo {
   id: RemovalLevel;
   name: string;

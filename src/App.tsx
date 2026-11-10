@@ -11,10 +11,11 @@ import {
   ToolMode, 
   BrushSettings,
   MagicWandSettings,
-  RemovalLevel 
+  RemovalLevel,
+  InitialStartMode 
 } from './types';
 import { processBackgroundRemoval, applyRemovalLevelToCutout } from './utils/removeBackground';
-import { exportImage, downloadBlob, loadImage } from './utils/canvasRenderer';
+import { exportImage, downloadBlob, loadImage, imageToPngDataUrl } from './utils/canvasRenderer';
 import { Sparkles, Wand2, Check, AlertCircle } from 'lucide-react';
 
 interface HistoryState {
@@ -32,6 +33,7 @@ export default function App() {
   const [initialCutoutSrc, setInitialCutoutSrc] = useState<string | null>(null);
   const [rawCutoutSrc, setRawCutoutSrc] = useState<string | null>(null);
   const [removalLevel, setRemovalLevel] = useState<RemovalLevel>('standard');
+  const [startMode, setStartMode] = useState<InitialStartMode>('ai-auto');
   const [cutoutImgElement, setCutoutImgElement] = useState<HTMLImageElement | null>(null);
   const [originalDimensions, setOriginalDimensions] = useState<{ width: number; height: number }>({
     width: 1080,
@@ -151,11 +153,12 @@ export default function App() {
       .catch((err) => console.error('Failed to load original image element:', err));
   }, [originalImgSrc]);
 
-  // Handle image upload & automatic background removal
-  const handleImageSelected = async (source: File | string) => {
+  // Handle image upload & automatic background removal or manual original start
+  const handleImageSelected = async (source: File | string, modeOverride?: InitialStartMode) => {
     try {
       setIsLoading(true);
-      setProgressPercent(10);
+      const effectiveMode = modeOverride || startMode;
+      setProgressPercent(15);
       setProgressStatus('Cargando imagen...');
 
       let srcUrl = '';
@@ -200,17 +203,6 @@ export default function App() {
       };
       setTransform(initialTransform);
 
-      // Process Background Removal with selected level
-      const result = await processBackgroundRemoval(source, removalLevel, ({ progress, status }) => {
-        setProgressPercent(progress);
-        setProgressStatus(status);
-      });
-
-      setCutoutImgSrc(result.dataUrl);
-      setInitialCutoutSrc(result.dataUrl);
-      setRawCutoutSrc(result.rawCutoutDataUrl || result.dataUrl);
-
-      // Reset history
       const initialBg: BackgroundConfig = {
         type: 'transparent',
         color: '#FFFFFF',
@@ -230,11 +222,39 @@ export default function App() {
         },
       };
       setBgConfig(initialBg);
-      setHistory([{ canvasDims: initialDims, transform: initialTransform, bgConfig: initialBg, cutoutImgSrc: result.dataUrl }]);
-      setHistoryIndex(0);
 
-      // Attempt AI subject recommendation in background
-      tryAnalyzeSubject(result.dataUrl);
+      if (effectiveMode === 'manual-original') {
+        // Start directly with original intact image
+        setProgressPercent(85);
+        setProgressStatus('Abriendo imagen original para selección manual...');
+        const pngDataUrl = imageToPngDataUrl(originalImg);
+
+        setCutoutImgSrc(pngDataUrl);
+        setInitialCutoutSrc(pngDataUrl);
+        setRawCutoutSrc(null);
+        setToolMode('magic-wand'); // Instantly activate "Tocar para Eliminar"
+
+        setHistory([{ canvasDims: initialDims, transform: initialTransform, bgConfig: initialBg, cutoutImgSrc: pngDataUrl }]);
+        setHistoryIndex(0);
+      } else {
+        // Process Background Removal with selected level
+        setProgressPercent(20);
+        const result = await processBackgroundRemoval(source, removalLevel, ({ progress, status }) => {
+          setProgressPercent(progress);
+          setProgressStatus(status);
+        });
+
+        setCutoutImgSrc(result.dataUrl);
+        setInitialCutoutSrc(result.dataUrl);
+        setRawCutoutSrc(result.rawCutoutDataUrl || result.dataUrl);
+        setToolMode('move');
+
+        setHistory([{ canvasDims: initialDims, transform: initialTransform, bgConfig: initialBg, cutoutImgSrc: result.dataUrl }]);
+        setHistoryIndex(0);
+
+        // Attempt AI subject recommendation in background
+        tryAnalyzeSubject(result.dataUrl);
+      }
     } catch (error) {
       console.error('Error procesando imagen:', error);
       alert('Hubo un problema al procesar la imagen. Se ha cargado la imagen para edición manual.');
@@ -270,7 +290,7 @@ export default function App() {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
-            handleImageSelected(file);
+            handleImageSelected(file, startMode);
             break;
           }
         }
@@ -394,6 +414,54 @@ export default function App() {
     }
   };
 
+  // Trigger AI Background Removal on demand (from toolbar or sidebar)
+  const handleTriggerAiRemoval = async (level?: RemovalLevel) => {
+    if (!originalImgSrc) return;
+    try {
+      setIsLoading(true);
+      const targetLevel = level || removalLevel;
+      setProgressPercent(15);
+      setProgressStatus(
+        `Eliminando fondo con IA (${targetLevel === 'soft' ? 'Suave' : targetLevel === 'deep' ? 'Profundo' : 'Estándar'})...`
+      );
+      const result = await processBackgroundRemoval(originalImgSrc, targetLevel, ({ progress, status }) => {
+        setProgressPercent(progress);
+        setProgressStatus(status);
+      });
+      setCutoutImgSrc(result.dataUrl);
+      setInitialCutoutSrc(result.dataUrl);
+      setRawCutoutSrc(result.rawCutoutDataUrl || result.dataUrl);
+      setToolMode('move');
+      handleApplyImageEdit(result.dataUrl);
+    } catch (err) {
+      console.error('Error al ejecutar eliminación con IA:', err);
+      alert('Hubo un error al procesar la eliminación automática con IA.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Reset to clean original intact image (to select and erase parts from scratch)
+  const handleResetToOriginal = async () => {
+    if (!originalImgSrc) return;
+    try {
+      setIsLoading(true);
+      setProgressPercent(50);
+      setProgressStatus('Cargando imagen original intacta...');
+      const img = await loadImage(originalImgSrc);
+      const pngDataUrl = imageToPngDataUrl(img);
+      setCutoutImgSrc(pngDataUrl);
+      setInitialCutoutSrc(pngDataUrl);
+      setRawCutoutSrc(null);
+      setToolMode('magic-wand');
+      handleApplyImageEdit(pngDataUrl);
+    } catch (err) {
+      console.error('Error al restaurar a imagen original:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Export & Download
   const handleExport = async () => {
     try {
@@ -472,6 +540,8 @@ export default function App() {
             progressPercent={progressPercent}
             selectedLevel={removalLevel}
             onSelectLevel={setRemovalLevel}
+            startMode={startMode}
+            onSelectStartMode={setStartMode}
           />
         </main>
       ) : (
@@ -494,6 +564,8 @@ export default function App() {
             onApplyImageEdit={handleApplyImageEdit}
             removalLevel={removalLevel}
             onSelectRemovalLevel={handleSelectRemovalLevel}
+            onTriggerAiRemoval={handleTriggerAiRemoval}
+            onResetToOriginal={handleResetToOriginal}
           />
 
           {/* Right Editing Sidebar */}
@@ -536,6 +608,8 @@ export default function App() {
             onResetCutoutToOriginal={handleResetCutoutToOriginal}
             removalLevel={removalLevel}
             onSelectRemovalLevel={handleSelectRemovalLevel}
+            onTriggerAiRemoval={handleTriggerAiRemoval}
+            onResetToOriginal={handleResetToOriginal}
           />
         </div>
       )}

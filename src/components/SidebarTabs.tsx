@@ -68,6 +68,8 @@ interface SidebarTabsProps {
   onResetCutoutToOriginal: () => void;
   removalLevel: RemovalLevel;
   onSelectRemovalLevel: (level: RemovalLevel) => void;
+  onTriggerAiRemoval?: () => void;
+  onResetToOriginal?: () => void;
 }
 
 type TabType = 'canvas' | 'background' | 'subject' | 'brush' | 'export';
@@ -98,6 +100,8 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = ({
   onResetCutoutToOriginal,
   removalLevel,
   onSelectRemovalLevel,
+  onTriggerAiRemoval,
+  onResetToOriginal,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('canvas');
   const [presetCategory, setPresetCategory] = useState<string>('all');
@@ -1111,14 +1115,40 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = ({
               </div>
             )}
 
-            {/* Reset to AI Cutout */}
-            <button
-              onClick={onResetCutoutToOriginal}
-              className="w-full py-2.5 px-3 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-neutral-200 transition-colors flex items-center justify-center space-x-2"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Restablecer al Recorte Inicial de IA</span>
-            </button>
+            {/* Actions: Trigger AI Removal or Reset to Original Image */}
+            <div className="space-y-2 pt-2 border-t border-neutral-800">
+              <label className="text-xs font-bold uppercase tracking-wider text-neutral-300 block">
+                Acciones de Recorte
+              </label>
+
+              {onTriggerAiRemoval && (
+                <button
+                  onClick={onTriggerAiRemoval}
+                  className="w-full py-2.5 px-3 rounded-xl border border-indigo-500/40 bg-indigo-600/20 hover:bg-indigo-600/30 text-xs font-bold text-indigo-200 transition-all flex items-center justify-center space-x-2 shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4 text-indigo-400" />
+                  <span>Eliminar Todo el Fondo con IA ({removalLevel === 'soft' ? 'Suave' : removalLevel === 'deep' ? 'Profundo' : 'Estándar'})</span>
+                </button>
+              )}
+
+              {onResetToOriginal && (
+                <button
+                  onClick={onResetToOriginal}
+                  className="w-full py-2.5 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-semibold text-amber-200 transition-all flex items-center justify-center space-x-2"
+                >
+                  <Wand2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Cargar Imagen Original Intacta (Tocar para Borrar)</span>
+                </button>
+              )}
+
+              <button
+                onClick={onResetCutoutToOriginal}
+                className="w-full py-2 px-3 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-xs font-medium text-neutral-300 transition-colors flex items-center justify-center space-x-2"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-neutral-400" />
+                <span>Restablecer cambios recientes</span>
+              </button>
+            </div>
           </div>
         )}
 

@@ -3,25 +3,28 @@ import {
   UploadCloud, 
   Image as ImageIcon, 
   Sparkles, 
-  ShieldCheck, 
-  Maximize2, 
   Layers, 
-  CheckCircle2, 
-  ArrowRight,
-  Zap,
-  Feather,
-  Check
+  Maximize2, 
+  Zap, 
+  Feather, 
+  Check, 
+  Wand2, 
+  MousePointerClick,
+  SlidersHorizontal,
+  ArrowRight
 } from 'lucide-react';
 import { SAMPLE_IMAGES, REMOVAL_LEVELS } from '../data/presets';
-import { SampleImage, RemovalLevel } from '../types';
+import { SampleImage, RemovalLevel, InitialStartMode } from '../types';
 
 interface UploadZoneProps {
-  onImageSelected: (source: File | string) => void;
+  onImageSelected: (source: File | string, mode?: InitialStartMode) => void;
   isLoading: boolean;
   progressText: string;
   progressPercent: number;
   selectedLevel: RemovalLevel;
   onSelectLevel: (level: RemovalLevel) => void;
+  startMode: InitialStartMode;
+  onSelectStartMode: (mode: InitialStartMode) => void;
 }
 
 export const UploadZone: React.FC<UploadZoneProps> = ({
@@ -31,6 +34,8 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   progressPercent,
   selectedLevel,
   onSelectLevel,
+  startMode,
+  onSelectStartMode,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,14 +59,14 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith('image/')) {
-        onImageSelected(file);
+        onImageSelected(file, startMode);
       }
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      onImageSelected(e.target.files[0]);
+      onImageSelected(e.target.files[0], startMode);
     }
   };
 
@@ -79,66 +84,148 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         </p>
       </div>
 
-      {/* 3 Niveles de Eliminación Automática */}
-      <div className="mb-6 bg-neutral-800/90 border border-neutral-700/80 rounded-2xl p-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-200">
-              Nivel de Eliminación Automática
+      {/* Main Start Mode Selector */}
+      <div className="mb-6 bg-neutral-800/95 border border-neutral-700/80 rounded-2xl p-2 sm:p-2.5 shadow-md flex flex-col sm:flex-row gap-2">
+        <button
+          type="button"
+          onClick={() => onSelectStartMode('ai-auto')}
+          className={`flex-1 p-3.5 rounded-xl border text-left transition-all flex items-start space-x-3.5 ${
+            startMode === 'ai-auto'
+              ? 'bg-indigo-600/20 border-indigo-500 shadow-md ring-1 ring-indigo-500/50'
+              : 'bg-neutral-850/60 border-neutral-700/80 hover:bg-neutral-800 text-neutral-300'
+          }`}
+        >
+          <div className={`p-2.5 rounded-xl shrink-0 ${startMode === 'ai-auto' ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/25' : 'bg-neutral-700 text-neutral-400'}`}>
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-sm font-bold ${startMode === 'ai-auto' ? 'text-white' : 'text-neutral-200'}`}>
+                1. Eliminación Automática con IA
+              </span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                Recomendado
+              </span>
+            </div>
+            <p className="text-xs text-neutral-400 leading-snug">
+              La IA detecta al sujeto y elimina todo el fondo al instante con 3 niveles de precisión a elegir.
+            </p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelectStartMode('manual-original')}
+          className={`flex-1 p-3.5 rounded-xl border text-left transition-all flex items-start space-x-3.5 ${
+            startMode === 'manual-original'
+              ? 'bg-amber-500/20 border-amber-500 shadow-md ring-1 ring-amber-500/50'
+              : 'bg-neutral-850/60 border-neutral-700/80 hover:bg-neutral-800 text-neutral-300'
+          }`}
+        >
+          <div className={`p-2.5 rounded-xl shrink-0 ${startMode === 'manual-original' ? 'bg-amber-500 text-neutral-900 shadow-md shadow-amber-500/25' : 'bg-neutral-700 text-neutral-400'}`}>
+            <Wand2 className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-sm font-bold ${startMode === 'manual-original' ? 'text-white' : 'text-neutral-200'}`}>
+                2. Empezar con Imagen Original
+              </span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Tocar para Eliminar
+              </span>
+            </div>
+            <p className="text-xs text-neutral-400 leading-snug">
+              Carga tu foto intacta y ve tocando o pintando las partes o fondos específicos que quieras borrar.
+            </p>
+          </div>
+        </button>
+      </div>
+
+      {/* Dynamic Subpanel based on Selected Start Mode */}
+      {startMode === 'ai-auto' ? (
+        /* 3 Niveles de Eliminación Automática */
+        <div className="mb-6 bg-neutral-800/90 border border-neutral-700/80 rounded-2xl p-4 shadow-sm animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+            <div className="flex items-center space-x-2">
+              <Sparkles className="w-4 h-4 text-indigo-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-neutral-200">
+                Nivel de Eliminación Automática
+              </span>
+            </div>
+            <span className="text-[11px] text-neutral-400">
+              Elige la sensibilidad antes de procesar tu imagen:
             </span>
           </div>
-          <span className="text-[11px] text-neutral-400">
-            Elige la sensibilidad antes de procesar tu imagen:
-          </span>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          {REMOVAL_LEVELS.map((lvl) => {
-            const isSelected = selectedLevel === lvl.id;
-            return (
-              <button
-                key={lvl.id}
-                type="button"
-                onClick={() => onSelectLevel(lvl.id)}
-                className={`relative p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                  isSelected
-                    ? 'bg-indigo-600/20 border-indigo-500 shadow-md ring-1 ring-indigo-500/50'
-                    : 'bg-neutral-850/80 border-neutral-700 hover:border-neutral-600 hover:bg-neutral-800'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center space-x-1.5">
-                      {lvl.id === 'soft' && <Feather className={`w-4 h-4 ${isSelected ? 'text-indigo-400' : 'text-neutral-400'}`} />}
-                      {lvl.id === 'standard' && <Sparkles className={`w-4 h-4 ${isSelected ? 'text-indigo-400' : 'text-neutral-400'}`} />}
-                      {lvl.id === 'deep' && <Zap className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-neutral-400'}`} />}
-                      <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-neutral-300'}`}>
-                        {lvl.name}
-                      </span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {REMOVAL_LEVELS.map((lvl) => {
+              const isSelected = selectedLevel === lvl.id;
+              return (
+                <button
+                  key={lvl.id}
+                  type="button"
+                  onClick={() => onSelectLevel(lvl.id)}
+                  className={`relative p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                    isSelected
+                      ? 'bg-indigo-600/20 border-indigo-500 shadow-md ring-1 ring-indigo-500/50'
+                      : 'bg-neutral-850/80 border-neutral-700 hover:border-neutral-600 hover:bg-neutral-800'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center space-x-1.5">
+                        {lvl.id === 'soft' && <Feather className={`w-4 h-4 ${isSelected ? 'text-indigo-400' : 'text-neutral-400'}`} />}
+                        {lvl.id === 'standard' && <Sparkles className={`w-4 h-4 ${isSelected ? 'text-indigo-400' : 'text-neutral-400'}`} />}
+                        {lvl.id === 'deep' && <Zap className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-neutral-400'}`} />}
+                        <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-neutral-300'}`}>
+                          {lvl.name}
+                        </span>
+                      </div>
+                      {isSelected ? (
+                        <span className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px]">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
+                          {lvl.tag}
+                        </span>
+                      )}
                     </div>
-                    {isSelected ? (
-                      <span className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px]">
-                        <Check className="w-3 h-3 stroke-[3]" />
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
-                        {lvl.tag}
-                      </span>
-                    )}
+                    <p className="text-[11px] text-neutral-300 leading-snug mb-1">
+                      {lvl.description}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-neutral-300 leading-snug mb-1">
-                    {lvl.description}
-                  </p>
-                </div>
-                <div className="mt-2 pt-2 border-t border-neutral-700/60 text-[10px] text-neutral-400">
-                  <span className="text-neutral-400 font-medium">Ideal: </span>{lvl.idealFor}
-                </div>
-              </button>
-            );
-          })}
+                  <div className="mt-2 pt-2 border-t border-neutral-700/60 text-[10px] text-neutral-400">
+                    <span className="text-neutral-400 font-medium">Ideal: </span>{lvl.idealFor}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Manual Original Mode Tip Banner */
+        <div className="mb-6 bg-neutral-800/90 border border-amber-500/30 rounded-2xl p-4 shadow-sm animate-in fade-in">
+          <div className="flex items-start space-x-3.5">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+              <MousePointerClick className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-bold text-amber-300">
+                  Modo Selección Manual Directa
+                </span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-200 border border-amber-500/40 px-2 py-0.5 rounded-full font-mono">
+                  Varita Mágica + Pincel
+                </span>
+              </div>
+              <p className="text-xs text-neutral-300 leading-relaxed">
+                Tu imagen original se cargará completa sin recortes. Podrás <strong>hacer clic en cualquier parte</strong> (fondo, objetos o colores) para eliminarlos paso a paso con tolerancia ajustable. Además, podrás aplicar la IA en cualquier instante con un solo clic.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Dropzone */}
       <div
@@ -149,6 +236,8 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         className={`relative cursor-pointer rounded-3xl border-2 border-dashed p-8 sm:p-14 text-center transition-all duration-300 shadow-lg ${
           isDragOver
             ? 'border-indigo-400 bg-indigo-500/15 scale-[1.01] shadow-2xl shadow-indigo-500/20'
+            : startMode === 'manual-original'
+            ? 'border-amber-500/40 bg-neutral-800/90 hover:border-amber-400 hover:bg-neutral-800'
             : 'border-neutral-600 bg-neutral-800/80 hover:border-neutral-500 hover:bg-neutral-800'
         } ${isLoading ? 'pointer-events-none' : ''}`}
       >
@@ -172,7 +261,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
               </div>
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white">Procesando imagen con IA...</h3>
+              <h3 className="text-lg font-bold text-white">Preparando imagen...</h3>
               <p className="text-xs text-neutral-400">{progressText}</p>
             </div>
             {/* Progress bar */}
@@ -186,22 +275,47 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-indigo-600/30 to-violet-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-inner group-hover:scale-105 transition-transform">
-              <UploadCloud className="w-10 h-10" />
+            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform ${
+              startMode === 'manual-original'
+                ? 'bg-gradient-to-tr from-amber-600/30 to-amber-500/20 border border-amber-500/30 text-amber-400'
+                : 'bg-gradient-to-tr from-indigo-600/30 to-violet-500/20 border border-indigo-500/30 text-indigo-400'
+            }`}>
+              {startMode === 'manual-original' ? (
+                <Wand2 className="w-10 h-10" />
+              ) : (
+                <UploadCloud className="w-10 h-10" />
+              )}
             </div>
 
             <div className="space-y-2">
               <h3 className="text-xl sm:text-2xl font-bold text-white">
-                Sube tu imagen o arrástrala aquí
+                {startMode === 'manual-original'
+                  ? 'Sube tu foto y toca las partes a eliminar'
+                  : 'Sube tu imagen o arrástrala aquí'}
               </h3>
-              <p className="text-xs sm:text-sm text-neutral-400">
-                Formatos soportados: PNG, JPG, WEBP, AVIF hasta 25 MB
+              <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto">
+                {startMode === 'manual-original'
+                  ? 'Se cargará la foto original intacta para que vayas tocando con la varita mágica o pincel cada parte a eliminar.'
+                  : 'Formatos soportados: PNG, JPG, WEBP, AVIF hasta 25 MB'}
               </p>
             </div>
 
-            <div className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition-all">
-              <ImageIcon className="w-4 h-4" />
-              <span>Seleccionar desde el equipo</span>
+            <div className={`inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg transition-all ${
+              startMode === 'manual-original'
+                ? 'bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-amber-500/25'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/25'
+            }`}>
+              {startMode === 'manual-original' ? (
+                <>
+                  <Wand2 className="w-4 h-4" />
+                  <span>Cargar imagen original para recortar</span>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-4 h-4" />
+                  <span>Seleccionar desde el equipo</span>
+                </>
+              )}
             </div>
 
             <div className="pt-2 flex items-center space-x-2 text-xs text-neutral-500">
@@ -209,6 +323,19 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                 Ctrl + V
               </kbd>
               <span>o pega directamente desde tu portapapeles</span>
+            </div>
+
+            {/* Quick Switcher Prompt inside dropzone */}
+            <div 
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectStartMode(startMode === 'ai-auto' ? 'manual-original' : 'ai-auto');
+              }}
+              className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+            >
+              {startMode === 'ai-auto'
+                ? '¿Prefieres empezar con la imagen original intacta y tocar para borrar? Cambiar a modo manual'
+                : '¿Prefieres que la IA elimine todo el fondo automáticamente? Cambiar a modo IA'}
             </div>
           </div>
         )}
@@ -219,7 +346,11 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300 flex items-center space-x-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>¿Sin foto a mano? Prueba con estas imágenes de muestra:</span>
+            <span>
+              {startMode === 'manual-original'
+                ? 'Prueba el modo de tocar para eliminar con estas fotos de muestra:'
+                : '¿Sin foto a mano? Prueba con estas imágenes de muestra:'}
+            </span>
           </span>
         </div>
 
@@ -227,7 +358,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
           {SAMPLE_IMAGES.map((sample: SampleImage) => (
             <button
               key={sample.id}
-              onClick={() => onImageSelected(sample.url)}
+              onClick={() => onImageSelected(sample.url, startMode)}
               disabled={isLoading}
               className="group relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-800 hover:border-indigo-400 hover:bg-neutral-750 transition-all text-left disabled:opacity-50 shadow-sm"
             >
@@ -254,13 +385,13 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
       {/* Feature highlights grid */}
       <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl bg-neutral-800/80 border border-neutral-700 flex items-start space-x-3.5 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
-            <Sparkles className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <Wand2 className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white mb-1">Recorte Inteligente</h4>
+            <h4 className="text-sm font-bold text-white mb-1">Tocar para Eliminar</h4>
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Detección automática del sujeto con suavizado de bordes para pelos, productos y personas.
+              Empieza desde la foto original y toca cualquier color o fondo con la Varita Mágica para borrarlo con precisión.
             </p>
           </div>
         </div>
