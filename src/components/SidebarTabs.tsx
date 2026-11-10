@@ -26,7 +26,11 @@ import {
   Image as ImageIcon,
   Copy,
   Feather,
-  Zap
+  Zap,
+  SquareDashed,
+  Crop,
+  Scissors,
+  Trash2
 } from 'lucide-react';
 import { 
   BackgroundConfig, 
@@ -956,6 +960,23 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = ({
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  onClick={() => onSelectToolMode('box-select')}
+                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                    toolMode === 'box-select'
+                      ? 'border-amber-500 bg-amber-500/20 text-white shadow-md ring-1 ring-amber-500'
+                      : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2 mb-1.5">
+                    <SquareDashed className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold text-white">Recuadro Detalle</span>
+                  </div>
+                  <span className="text-[10px] text-neutral-400 leading-tight">
+                    Proporción libre para enfocar o recortar
+                  </span>
+                </button>
+
+                <button
                   onClick={() => onSelectToolMode('magic-wand')}
                   className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
                     toolMode === 'magic-wand'
@@ -1008,22 +1029,47 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = ({
 
                 <button
                   onClick={() => onSelectToolMode('move')}
-                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                  className={`col-span-2 p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all ${
                     toolMode === 'move'
                       ? 'border-neutral-600 bg-neutral-800 text-white shadow-md'
                       : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center space-x-2 mb-1.5">
+                  <div className="flex items-center space-x-2">
                     <Move className="w-4 h-4 text-neutral-300" />
-                    <span className="text-xs font-bold text-white">Mover</span>
+                    <span className="text-xs font-bold text-white">Mover y Centrar Sujeto</span>
                   </div>
-                  <span className="text-[10px] text-neutral-400 leading-tight">
-                    Arrastra y reposiciona el sujeto
-                  </span>
+                  <span className="text-[10px] text-neutral-400">Arrastra en el lienzo</span>
                 </button>
               </div>
             </div>
+
+            {/* Box Select Controls & Instructions */}
+            {toolMode === 'box-select' && (
+              <div className="space-y-3 p-4 rounded-2xl bg-neutral-950/80 border border-amber-500/30 animate-in fade-in">
+                <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold">
+                  <SquareDashed className="w-4 h-4" />
+                  <span>Recuadro de Proporción Libre</span>
+                </div>
+                <p className="text-xs text-neutral-300 leading-relaxed">
+                  Haz clic y arrastra sobre el lienzo para trazar un recuadro de cualquier proporción sobre la zona que quieras aislar o trabajar.
+                </p>
+                <div className="space-y-2 text-[11px] text-neutral-400 border-t border-neutral-800/80 pt-2.5">
+                  <div className="flex items-start space-x-2 text-neutral-300">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 mt-1"></span>
+                    <span><strong>Enfocar Detalle:</strong> Hace zoom automático en el recuadro para trabajar con la varita mágica y pincel de forma precisa.</span>
+                  </div>
+                  <div className="flex items-start space-x-2 text-neutral-300">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 mt-1"></span>
+                    <span><strong>Conservar Interior:</strong> Elimina de un solo golpe todo el fondo exterior al recuadro.</span>
+                  </div>
+                  <div className="flex items-start space-x-2 text-neutral-300">
+                    <span className="w-2 h-2 rounded-full bg-red-400 shrink-0 mt-1"></span>
+                    <span><strong>Borrar Zona:</strong> Vuelve transparente todo lo que quede dentro del recuadro (marcas, logos o texto).</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Magic Wand Controls */}
             {toolMode === 'magic-wand' && (

@@ -254,3 +254,89 @@ export function brushRestoreCircle(
 
   ctx.restore();
 }
+
+/**
+ * Erase everything outside the specified rectangle on the subject image
+ */
+export function eraseOutsideRect(
+  cutoutCanvas: HTMLCanvasElement,
+  rect: { x: number; y: number; width: number; height: number }
+): string {
+  const ctx = cutoutCanvas.getContext('2d');
+  if (!ctx) return cutoutCanvas.toDataURL('image/png');
+
+  const rx = rect.width < 0 ? rect.x + rect.width : rect.x;
+  const ry = rect.height < 0 ? rect.y + rect.height : rect.y;
+  const rw = Math.abs(rect.width);
+  const rh = Math.abs(rect.height);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(rx, ry, rw, rh);
+  ctx.restore();
+
+  return cutoutCanvas.toDataURL('image/png');
+}
+
+/**
+ * Erase everything inside the specified rectangle on the subject image
+ */
+export function eraseInsideRect(
+  cutoutCanvas: HTMLCanvasElement,
+  rect: { x: number; y: number; width: number; height: number }
+): string {
+  const ctx = cutoutCanvas.getContext('2d');
+  if (!ctx) return cutoutCanvas.toDataURL('image/png');
+
+  const rx = rect.width < 0 ? rect.x + rect.width : rect.x;
+  const ry = rect.height < 0 ? rect.y + rect.height : rect.y;
+  const rw = Math.abs(rect.width);
+  const rh = Math.abs(rect.height);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(rx, ry, rw, rh);
+  ctx.restore();
+
+  return cutoutCanvas.toDataURL('image/png');
+}
+
+/**
+ * Converts a rectangle in canvas coordinates to local image coordinates
+ */
+export function canvasRectToImageRect(
+  canvasRect: { x: number; y: number; width: number; height: number },
+  imgWidth: number,
+  imgHeight: number,
+  canvasDims: CanvasDimensions,
+  transform: SubjectTransform
+): { x: number; y: number; width: number; height: number } {
+  const p1 = canvasCoordsToImageCoords(canvasRect.x, canvasRect.y, imgWidth, imgHeight, canvasDims, transform);
+  const p2 = canvasCoordsToImageCoords(
+    canvasRect.x + canvasRect.width,
+    canvasRect.y + canvasRect.height,
+    imgWidth,
+    imgHeight,
+    canvasDims,
+    transform
+  );
+
+  const minX = Math.min(p1.x, p2.x);
+  const maxX = Math.max(p1.x, p2.x);
+  const minY = Math.min(p1.y, p2.y);
+  const maxY = Math.max(p1.y, p2.y);
+
+  const rx = Math.max(0, Math.min(imgWidth, minX));
+  const ry = Math.max(0, Math.min(imgHeight, minY));
+  const rw = Math.max(1, Math.min(imgWidth - rx, maxX - minX));
+  const rh = Math.max(1, Math.min(imgHeight - ry, maxY - minY));
+
+  return {
+    x: rx,
+    y: ry,
+    width: rw,
+    height: rh,
+  };
+}

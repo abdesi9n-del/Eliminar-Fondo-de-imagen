@@ -135,7 +135,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
               </span>
             </div>
             <p className="text-xs text-neutral-400 leading-snug">
-              Carga tu foto intacta y ve tocando o pintando las partes o fondos específicos que quieras borrar.
+              Carga tu foto intacta, traza un <strong>recuadro de proporción libre</strong> para enfocar el área de detalle o toca para borrar.
             </p>
           </div>
         </button>
@@ -213,14 +213,14 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
                 <span className="text-sm font-bold text-amber-300">
-                  Modo Selección Manual Directa
+                  Modo Selección Manual Directa & Trabajo al Detalle
                 </span>
                 <span className="text-[10px] bg-amber-500/20 text-amber-200 border border-amber-500/40 px-2 py-0.5 rounded-full font-mono">
-                  Varita Mágica + Pincel
+                  Recuadro Libre + Varita Mágica
                 </span>
               </div>
               <p className="text-xs text-neutral-300 leading-relaxed">
-                Tu imagen original se cargará completa sin recortes. Podrás <strong>hacer clic en cualquier parte</strong> (fondo, objetos o colores) para eliminarlos paso a paso con tolerancia ajustable. Además, podrás aplicar la IA en cualquier instante con un solo clic.
+                Tu imagen original se cargará completa sin recortes. Podrás <strong>trazar un recuadro de proporción libre</strong> para seleccionar y trabajar cualquier área al detalle (o eliminar de un golpe todo el fondo exterior), además de <strong>tocar cualquier parte</strong> para borrarla con la varita mágica o pincel.
               </p>
             </div>
           </div>

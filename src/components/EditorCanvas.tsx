@@ -14,7 +14,12 @@ import {
   Feather,
   Zap,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  SquareDashed,
+  Crop,
+  Scissors,
+  Trash2,
+  X
 } from 'lucide-react';
 import { 
   BackgroundConfig, 
@@ -23,11 +28,15 @@ import {
   ToolMode, 
   BrushSettings,
   MagicWandSettings,
-  RemovalLevel 
+  RemovalLevel,
+  SelectionRect 
 } from '../types';
 import { calculateSubjectLayout, renderComposition } from '../utils/canvasRenderer';
 import { 
   canvasCoordsToImageCoords, 
+  canvasRectToImageRect,
+  eraseOutsideRect,
+  eraseInsideRect,
   magicWandErase, 
   brushEraseCircle, 
   brushRestoreCircle 
@@ -102,6 +111,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   // Mouse position for cursor preview & ripples
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [tapRipple, setTapRipple] = useState<{ x: number; y: number; id: number } | null>(null);
+
+  // Bounding box selection state (recuadro de proporción libre)
+  const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
+  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
+  const [isSelectingBox, setIsSelectingBox] = useState<boolean>(false);
 
   // Fit canvas into view automatically on init or resize
   const fitToView = useCallback(() => {
@@ -194,6 +208,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       transform
     );
 
+    // 0. BOX SELECT: Freeform bounding box
+    if (toolMode === 'box-select') {
+      setSelectionStart({ x: coords.canvasX, y: coords.canvasY });
+      setSelectionRect({ x: coords.canvasX, y: coords.canvasY, width: 0, height: 0 });
+      setIsSelectingBox(true);
+      return;
+    }
+
     // 1. MAGIC WAND: Tap to delete specific region or color
     if (toolMode === 'magic-wand') {
       if (imgCoords.inside && workingCutoutCanvasRef.current) {
@@ -271,6 +293,21 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       });
     }
 
+    // Dragging box select rectangle
+    if (isSelectingBox && selectionStart && toolMode === 'box-select') {
+      const coords = getCanvasCoordsFromEvent(e);
+      if (coords) {
+        const curX = coords.canvasX;
+        const curY = coords.canvasY;
+        const rx = Math.min(selectionStart.x, curX);
+        const ry = Math.min(selectionStart.y, curY);
+        const rw = Math.abs(curX - selectionStart.x);
+        const rh = Math.abs(curY - selectionStart.y);
+        setSelectionRect({ x: rx, y: ry, width: rw, height: rh });
+      }
+      return;
+    }
+
     // Painting with brush
     if (isPainting && (toolMode === 'erase' || toolMode === 'restore') && cutoutImg) {
       const coords = getCanvasCoordsFromEvent(e);
@@ -314,6 +351,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   // Pointer Up handler
   const handlePointerUp = () => {
+    if (isSelectingBox && toolMode === 'box-select') {
+      setIsSelectingBox(false);
+      setSelectionStart(null);
+      if (selectionRect && (selectionRect.width < 10 || selectionRect.height < 10)) {
+        setSelectionRect(null);
+      }
+      return;
+    }
     if (isPainting && hasPaintedAny && workingCutoutCanvasRef.current) {
       const newUrl = workingCutoutCanvasRef.current.toDataURL('image/png');
       onApplyImageEdit(newUrl);
@@ -324,6 +369,67 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     setDragStart(null);
     setSnapH(false);
     setSnapV(false);
+  };
+
+  // Actions for Box Select
+  const handleFocusDetail = () => {
+    if (!selectionRect || !containerRef.current) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const padding = 120;
+    const availW = Math.max(100, clientWidth - padding);
+    const availH = Math.max(100, clientHeight - padding);
+
+    const scaleW = availW / Math.max(60, selectionRect.width);
+    const scaleH = availH / Math.max(60, selectionRect.height);
+    const targetZoom = Math.min(3.5, Math.max(1.3, Math.min(scaleW, scaleH)));
+    setZoom(Number(targetZoom.toFixed(2)));
+
+    // Shift subject transform to center this selection in viewport
+    const selCenterX = selectionRect.x + selectionRect.width / 2;
+    const selCenterY = selectionRect.y + selectionRect.height / 2;
+    const deltaX = (canvasDims.width / 2) - selCenterX;
+    const deltaY = (canvasDims.height / 2) - selCenterY;
+    onUpdateTransform({
+      x: Math.round(transform.x + deltaX),
+      y: Math.round(transform.y + deltaY),
+    });
+
+    onSelectToolMode('magic-wand');
+    setSelectionRect(null);
+  };
+
+  const handleKeepInsideEraseOutside = () => {
+    if (!selectionRect || !workingCutoutCanvasRef.current || !cutoutImg) return;
+    const imgRect = canvasRectToImageRect(
+      selectionRect,
+      cutoutImg.naturalWidth,
+      cutoutImg.naturalHeight,
+      canvasDims,
+      transform
+    );
+    const newCutoutUrl = eraseOutsideRect(workingCutoutCanvasRef.current, imgRect);
+    onApplyImageEdit(newCutoutUrl);
+    setSelectionRect(null);
+    onSelectToolMode('magic-wand');
+  };
+
+  const handleEraseInside = () => {
+    if (!selectionRect || !workingCutoutCanvasRef.current || !cutoutImg) return;
+    const imgRect = canvasRectToImageRect(
+      selectionRect,
+      cutoutImg.naturalWidth,
+      cutoutImg.naturalHeight,
+      canvasDims,
+      transform
+    );
+    const newCutoutUrl = eraseInsideRect(workingCutoutCanvasRef.current, imgRect);
+    onApplyImageEdit(newCutoutUrl);
+    setSelectionRect(null);
+  };
+
+  const handleCancelSelection = () => {
+    setSelectionRect(null);
+    setSelectionStart(null);
   };
 
   const layout = cutoutImg && cutoutImg.naturalWidth > 0
@@ -360,6 +466,19 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         >
           <Move className="w-3.5 h-3.5" />
           <span>Mover</span>
+        </button>
+
+        <button
+          onClick={() => onSelectToolMode('box-select')}
+          title="Recuadro de proporción libre: Delimita un área para trabajar a detalle o eliminar fondo exterior"
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all ${
+            toolMode === 'box-select'
+              ? 'bg-amber-500 text-neutral-950 shadow-md shadow-amber-500/25'
+              : 'text-neutral-300 hover:text-white hover:bg-neutral-800/50'
+          }`}
+        >
+          <SquareDashed className="w-3.5 h-3.5 text-amber-300" />
+          <span>Recuadro Detalle</span>
         </button>
 
         <button
@@ -522,6 +641,24 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         </div>
       )}
 
+      {/* Floating Info Banner for Box Select */}
+      {toolMode === 'box-select' && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-amber-950/90 border border-amber-500/40 text-amber-200 px-4 py-2 rounded-2xl shadow-xl flex items-center space-x-3 text-xs z-30 backdrop-blur-md animate-in fade-in slide-in-from-top-2 whitespace-nowrap">
+          <div className="flex items-center space-x-1.5">
+            <SquareDashed className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>Haz clic y arrastra sobre el lienzo para trazar un recuadro de proporción libre</span>
+          </div>
+          {selectionRect && selectionRect.width > 5 && (
+            <>
+              <div className="h-4 w-px bg-amber-800"></div>
+              <span className="font-mono text-amber-300 font-bold text-[11px]">
+                {Math.round(selectionRect.width)} × {Math.round(selectionRect.height)} px
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Floating Canvas Viewport */}
       <div
         className="relative shadow-2xl transition-transform duration-75"
@@ -530,6 +667,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           height: `${canvasDims.height * zoom}px`,
           cursor: toolMode === 'move' 
             ? (isDraggingSubject ? 'grabbing' : 'grab') 
+            : toolMode === 'box-select'
+            ? 'crosshair'
             : toolMode === 'magic-wand' 
             ? 'crosshair' 
             : 'crosshair',
@@ -651,6 +790,78 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           >
             <div className="w-5 h-5 rounded-full border border-indigo-400 bg-indigo-500/20 animate-ping absolute"></div>
             <div className="w-3 h-3 rounded-full border-2 border-white bg-indigo-500 shadow-md"></div>
+          </div>
+        )}
+
+        {/* Selection Rectangle Overlay (Box Select / Proporción Libre) */}
+        {selectionRect && selectionRect.width > 2 && selectionRect.height > 2 && (
+          <div
+            className="absolute border-2 border-dashed border-amber-400 bg-amber-400/10 z-30 pointer-events-none"
+            style={{
+              left: `${selectionRect.x * zoom}px`,
+              top: `${selectionRect.y * zoom}px`,
+              width: `${selectionRect.width * zoom}px`,
+              height: `${selectionRect.height * zoom}px`,
+            }}
+          >
+            {/* Dimensions label tag */}
+            <div className="absolute -top-6 left-0 bg-neutral-900/95 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded text-[10px] font-mono font-bold shadow-md whitespace-nowrap pointer-events-none">
+              {Math.round(selectionRect.width)} × {Math.round(selectionRect.height)} px (Proporción Libre)
+            </div>
+
+            {/* Corner handles */}
+            <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-amber-400 rounded-sm shadow border border-neutral-900"></div>
+            <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-amber-400 rounded-sm shadow border border-neutral-900"></div>
+            <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-amber-400 rounded-sm shadow border border-neutral-900"></div>
+            <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-amber-400 rounded-sm shadow border border-neutral-900"></div>
+
+            {/* Action Bar for this selection */}
+            {!isSelectingBox && (
+              <div 
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-neutral-900/95 border border-amber-500/50 p-1.5 rounded-xl shadow-2xl flex items-center space-x-1.5 text-xs pointer-events-auto backdrop-blur-md whitespace-nowrap z-40"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={handleFocusDetail}
+                  title="Amplía y centra esta área para trabajar con la varita mágica o pincel al detalle"
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold flex items-center space-x-1 transition-all shadow-sm cursor-pointer"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                  <span>Enfocar Detalle</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleKeepInsideEraseOutside}
+                  title="Elimina de un golpe todo el fondo exterior al recuadro"
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center space-x-1 transition-all shadow-sm cursor-pointer"
+                >
+                  <Scissors className="w-3.5 h-3.5" />
+                  <span>Conservar Interior</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleEraseInside}
+                  title="Borra y hace transparente todo lo que está dentro de este recuadro"
+                  className="px-2 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 font-semibold flex items-center space-x-1 transition-all border border-red-500/30 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Borrar Zona</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCancelSelection}
+                  title="Cancelar selección"
+                  className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

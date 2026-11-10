@@ -67,7 +67,14 @@ export interface ExportSettings {
   fileName: string;
 }
 
-export type ToolMode = 'move' | 'magic-wand' | 'erase' | 'restore';
+export type ToolMode = 'move' | 'box-select' | 'magic-wand' | 'erase' | 'restore';
+
+export interface SelectionRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface MagicWandSettings {
   tolerance: number; // 1 to 100%
