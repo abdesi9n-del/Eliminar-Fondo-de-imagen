@@ -1,4 +1,5 @@
 import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
+import { RemovalLevel } from '../types';
 
 export interface BgRemovalProgress {
   progress: number;
@@ -6,12 +7,14 @@ export interface BgRemovalProgress {
 }
 
 /**
- * Remove background with @imgly/background-removal and smart local fallback
+ * Remove background with @imgly/background-removal and smart local fallback,
+ * applying the selected precision level (soft, standard, deep).
  */
 export async function processBackgroundRemoval(
   imageSource: string | File | Blob | HTMLImageElement,
+  level: RemovalLevel = 'standard',
   onProgress?: (p: BgRemovalProgress) => void
-): Promise<{ blob: Blob; dataUrl: string; width: number; height: number }> {
+): Promise<{ blob: Blob; dataUrl: string; width: number; height: number; rawCutoutDataUrl: string }> {
   try {
     if (onProgress) {
       onProgress({ progress: 15, status: 'Analizando imagen y modelo de IA...' });
@@ -31,34 +34,153 @@ export async function processBackgroundRemoval(
     });
 
     if (onProgress) {
-      onProgress({ progress: 95, status: 'Refinando bordes transparentes...' });
+      onProgress({ progress: 92, status: `Aplicando nivel de refinamiento: ${getLevelLabel(level)}...` });
     }
 
-    const dataUrl = await blobToDataUrl(blob);
-    const { width, height } = await getImageDimensions(dataUrl);
+    const rawCutoutDataUrl = await blobToDataUrl(blob);
+    // Apply removal level post-processing
+    const refinedDataUrl = await applyRemovalLevelToCutout(rawCutoutDataUrl, level);
+    const finalBlob = await dataUrlToBlob(refinedDataUrl);
+    const { width, height } = await getImageDimensions(refinedDataUrl);
 
     if (onProgress) {
       onProgress({ progress: 100, status: '¡Listo! Fondo eliminado con éxito.' });
     }
 
-    return { blob, dataUrl, width, height };
+    return { blob: finalBlob, dataUrl: refinedDataUrl, width, height, rawCutoutDataUrl };
   } catch (err) {
     console.warn('AI model failed or was interrupted, applying high-precision Canvas fallback segmentation:', err);
     if (onProgress) {
-      onProgress({ progress: 50, status: 'Aplicando segmentación rápida de borde...' });
+      onProgress({ progress: 50, status: `Aplicando segmentación de borde (${getLevelLabel(level)})...` });
     }
 
     // Fallback: smart color/edge segmentation
-    const dataUrl = await fallbackEdgeRemoval(imageSource);
-    const blob = await dataUrlToBlob(dataUrl);
-    const { width, height } = await getImageDimensions(dataUrl);
+    const rawCutoutDataUrl = await fallbackEdgeRemoval(imageSource, level);
+    const refinedDataUrl = await applyRemovalLevelToCutout(rawCutoutDataUrl, level);
+    const blob = await dataUrlToBlob(refinedDataUrl);
+    const { width, height } = await getImageDimensions(refinedDataUrl);
 
     if (onProgress) {
       onProgress({ progress: 100, status: '¡Listo! Fondo procesado.' });
     }
 
-    return { blob, dataUrl, width, height };
+    return { blob, dataUrl: refinedDataUrl, width, height, rawCutoutDataUrl };
   }
+}
+
+function getLevelLabel(level: RemovalLevel): string {
+  switch (level) {
+    case 'soft':
+      return 'Suave / Detallado';
+    case 'deep':
+      return 'Profundo / Sin halos';
+    case 'standard':
+    default:
+      return 'Estándar';
+  }
+}
+
+/**
+ * Re-applies a removal level (soft, standard, deep) to a cutout image without re-running the AI model.
+ */
+export function applyRemovalLevelToCutout(
+  sourceDataUrl: string,
+  level: RemovalLevel
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        resolve(sourceDataUrl);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, w, h);
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      if (level === 'soft') {
+        // Nivel 1: Suave / Conservador
+        // Expande ligeramente la transparencia para preservar cabellos finos,
+        // velos, vidrio y bordes suaves sin cortar de más.
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3];
+          if (a > 6) {
+            // Gamma curve boost for soft edge visibility
+            const normalized = a / 255;
+            data[i + 3] = Math.min(255, Math.round(255 * Math.pow(normalized, 0.72)));
+          } else {
+            data[i + 3] = 0;
+          }
+        }
+      } else if (level === 'deep') {
+        // Nivel 3: Profundo / Agresivo / Cero halos
+        // Recorta halos periféricos y limpia sombras o restos de fondo (spill).
+        // Primero, limpiamos el ruido de baja opacidad y aumentamos el contraste del borde.
+        const originalAlphas = new Uint8Array(w * h);
+        for (let idx = 0; idx < w * h; idx++) {
+          const a = data[idx * 4 + 3];
+          if (a < 36) {
+            data[idx * 4 + 3] = 0;
+            originalAlphas[idx] = 0;
+          } else {
+            // Steepened alpha curve to eliminate fuzzy edge halos
+            const normalized = a / 255;
+            const boosted = Math.min(255, Math.round(255 * Math.pow(normalized, 1.45)));
+            data[idx * 4 + 3] = boosted;
+            originalAlphas[idx] = boosted;
+          }
+        }
+
+        // Morphological 1-pixel edge defringe
+        // Detect pixels on the border with transparent space and suppress outer edge contamination
+        for (let y = 1; y < h - 1; y++) {
+          for (let x = 1; x < w - 1; x++) {
+            const idx = y * w + x;
+            const a = originalAlphas[idx];
+            if (a > 0 && a < 250) {
+              // Check if any direct neighbor is transparent
+              const left = originalAlphas[idx - 1] === 0;
+              const right = originalAlphas[idx + 1] === 0;
+              const top = originalAlphas[idx - w] === 0;
+              const btm = originalAlphas[idx + w] === 0;
+
+              if (left || right || top || btm) {
+                // If it is an exterior border pixel with low alpha, erode it
+                if (a < 160) {
+                  data[idx * 4 + 3] = 0;
+                } else {
+                  // Damp outer halo opacity
+                  data[idx * 4 + 3] = Math.round(data[idx * 4 + 3] * 0.7);
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Nivel 2: Estándar / Equilibrado
+        // Balance equilibrado: limpia píxeles fantasma (< 12) conservando el suavizado antialias natural.
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3];
+          if (a < 12) {
+            data[i + 3] = 0;
+          }
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = reject;
+    img.src = sourceDataUrl;
+  });
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -70,7 +192,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+export function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   return fetch(dataUrl).then((res) => res.blob());
 }
 
@@ -86,9 +208,12 @@ export function getImageDimensions(src: string): Promise<{ width: number; height
 
 /**
  * Intelligent client-side fallback: analyzes perimeter color distribution, detects dominant
- * background colors/gradients, and segments foreground subject.
+ * background colors/gradients, and segments foreground subject based on removal level.
  */
-async function fallbackEdgeRemoval(source: string | File | Blob | HTMLImageElement): Promise<string> {
+async function fallbackEdgeRemoval(
+  source: string | File | Blob | HTMLImageElement,
+  level: RemovalLevel = 'standard'
+): Promise<string> {
   return new Promise(async (resolve, reject) => {
     let srcUrl = '';
     if (typeof source === 'string') {
@@ -146,9 +271,17 @@ async function fallbackEdgeRemoval(source: string | File | Blob | HTMLImageEleme
       const avgG = gSum / count;
       const avgB = bSum / count;
 
-      // Simple flood-fill / threshold alpha keying
-      const threshold = 38;
-      const softEdge = 18;
+      // Threshold according to level
+      let threshold = 38;
+      let softEdge = 18;
+
+      if (level === 'soft') {
+        threshold = 28;
+        softEdge = 24;
+      } else if (level === 'deep') {
+        threshold = 50;
+        softEdge = 10;
+      }
 
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];

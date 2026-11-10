@@ -80,6 +80,17 @@ export interface BrushSettings {
   opacity: number; // 0 to 1
 }
 
+export type RemovalLevel = 'soft' | 'standard' | 'deep';
+
+export interface RemovalLevelInfo {
+  id: RemovalLevel;
+  name: string;
+  tag: string;
+  icon: string;
+  description: string;
+  idealFor: string;
+}
+
 export interface SampleImage {
   id: string;
   title: string;

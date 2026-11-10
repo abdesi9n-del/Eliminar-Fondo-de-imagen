@@ -10,7 +10,10 @@ import {
   Wand2,
   Info,
   SlidersHorizontal,
-  Check
+  Check,
+  Feather,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { 
   BackgroundConfig, 
@@ -18,7 +21,8 @@ import {
   SubjectTransform, 
   ToolMode, 
   BrushSettings,
-  MagicWandSettings 
+  MagicWandSettings,
+  RemovalLevel 
 } from '../types';
 import { calculateSubjectLayout, renderComposition } from '../utils/canvasRenderer';
 import { 
@@ -43,6 +47,8 @@ interface EditorCanvasProps {
   brushSettings: BrushSettings;
   onUpdateBrushSettings: (b: Partial<BrushSettings>) => void;
   onApplyImageEdit: (newDataUrl: string) => void;
+  removalLevel: RemovalLevel;
+  onSelectRemovalLevel: (level: RemovalLevel) => void;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -60,6 +66,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   brushSettings,
   onUpdateBrushSettings,
   onApplyImageEdit,
+  removalLevel,
+  onSelectRemovalLevel,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -387,6 +395,56 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           <Paintbrush className="w-3.5 h-3.5" />
           <span>Restaurar</span>
         </button>
+
+        {/* 3-Level Background Removal Quick Switcher */}
+        {removalLevel && onSelectRemovalLevel && (
+          <>
+            <div className="h-4 w-px bg-neutral-700 mx-1"></div>
+            <div className="flex items-center space-x-1 pl-0.5">
+              <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold hidden md:inline mr-1">
+                Recorte:
+              </span>
+              <button
+                onClick={() => onSelectRemovalLevel('soft')}
+                title="Nivel Suave: Pelo fino, bordes orgánicos, sin sobrecorte"
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-all ${
+                  removalLevel === 'soft'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800/50'
+                }`}
+              >
+                <Feather className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Suave</span>
+              </button>
+
+              <button
+                onClick={() => onSelectRemovalLevel('standard')}
+                title="Nivel Estándar: Equilibrado para retratos y moda"
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-all ${
+                  removalLevel === 'standard'
+                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800/50'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Estándar</span>
+              </button>
+
+              <button
+                onClick={() => onSelectRemovalLevel('deep')}
+                title="Nivel Profundo: Máxima nitidez para productos y e-commerce, sin halos"
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-all ${
+                  removalLevel === 'deep'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800/50'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 text-purple-400" />
+                <span>Profundo</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Floating Info Banner for Magic Wand */}

@@ -8,16 +8,20 @@ import {
   Layers, 
   CheckCircle2, 
   ArrowRight,
-  Zap
+  Zap,
+  Feather,
+  Check
 } from 'lucide-react';
-import { SAMPLE_IMAGES } from '../data/presets';
-import { SampleImage } from '../types';
+import { SAMPLE_IMAGES, REMOVAL_LEVELS } from '../data/presets';
+import { SampleImage, RemovalLevel } from '../types';
 
 interface UploadZoneProps {
   onImageSelected: (source: File | string) => void;
   isLoading: boolean;
   progressText: string;
   progressPercent: number;
+  selectedLevel: RemovalLevel;
+  onSelectLevel: (level: RemovalLevel) => void;
 }
 
 export const UploadZone: React.FC<UploadZoneProps> = ({
@@ -25,6 +29,8 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   isLoading,
   progressText,
   progressPercent,
+  selectedLevel,
+  onSelectLevel,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +77,67 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
           Ajusta medidas del lienzo manualmente o con presets para Amazon, Instagram o Shopify.
           Descarga en <strong className="text-white">PNG transparente</strong> o <strong className="text-white">JPG con fondos de color</strong>.
         </p>
+      </div>
+
+      {/* 3 Niveles de Eliminación Automática */}
+      <div className="mb-6 bg-neutral-800/90 border border-neutral-700/80 rounded-2xl p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+          <div className="flex items-center space-x-2">
+            <Sparkles className="w-4 h-4 text-indigo-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-200">
+              Nivel de Eliminación Automática
+            </span>
+          </div>
+          <span className="text-[11px] text-neutral-400">
+            Elige la sensibilidad antes de procesar tu imagen:
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {REMOVAL_LEVELS.map((lvl) => {
+            const isSelected = selectedLevel === lvl.id;
+            return (
+              <button
+                key={lvl.id}
+                type="button"
+                onClick={() => onSelectLevel(lvl.id)}
+                className={`relative p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                  isSelected
+                    ? 'bg-indigo-600/20 border-indigo-500 shadow-md ring-1 ring-indigo-500/50'
+                    : 'bg-neutral-850/80 border-neutral-700 hover:border-neutral-600 hover:bg-neutral-800'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center space-x-1.5">
+                      {lvl.id === 'soft' && <Feather className={`w-4 h-4 ${isSelected ? 'text-indigo-400' : 'text-neutral-400'}`} />}
+                      {lvl.id === 'standard' && <Sparkles className={`w-4 h-4 ${isSelected ? 'text-indigo-400' : 'text-neutral-400'}`} />}
+                      {lvl.id === 'deep' && <Zap className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-neutral-400'}`} />}
+                      <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-neutral-300'}`}>
+                        {lvl.name}
+                      </span>
+                    </div>
+                    {isSelected ? (
+                      <span className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px]">
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
+                        {lvl.tag}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-neutral-300 leading-snug mb-1">
+                    {lvl.description}
+                  </p>
+                </div>
+                <div className="mt-2 pt-2 border-t border-neutral-700/60 text-[10px] text-neutral-400">
+                  <span className="text-neutral-400 font-medium">Ideal: </span>{lvl.idealFor}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main Dropzone */}

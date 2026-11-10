@@ -10,9 +10,10 @@ import {
   SubjectTransform, 
   ToolMode, 
   BrushSettings,
-  MagicWandSettings 
+  MagicWandSettings,
+  RemovalLevel 
 } from './types';
-import { processBackgroundRemoval } from './utils/removeBackground';
+import { processBackgroundRemoval, applyRemovalLevelToCutout } from './utils/removeBackground';
 import { exportImage, downloadBlob, loadImage } from './utils/canvasRenderer';
 import { Sparkles, Wand2, Check, AlertCircle } from 'lucide-react';
 
@@ -29,6 +30,8 @@ export default function App() {
   const [originalImgElement, setOriginalImgElement] = useState<HTMLImageElement | null>(null);
   const [cutoutImgSrc, setCutoutImgSrc] = useState<string | null>(null);
   const [initialCutoutSrc, setInitialCutoutSrc] = useState<string | null>(null);
+  const [rawCutoutSrc, setRawCutoutSrc] = useState<string | null>(null);
+  const [removalLevel, setRemovalLevel] = useState<RemovalLevel>('standard');
   const [cutoutImgElement, setCutoutImgElement] = useState<HTMLImageElement | null>(null);
   const [originalDimensions, setOriginalDimensions] = useState<{ width: number; height: number }>({
     width: 1080,
@@ -197,14 +200,15 @@ export default function App() {
       };
       setTransform(initialTransform);
 
-      // Process Background Removal
-      const result = await processBackgroundRemoval(source, ({ progress, status }) => {
+      // Process Background Removal with selected level
+      const result = await processBackgroundRemoval(source, removalLevel, ({ progress, status }) => {
         setProgressPercent(progress);
         setProgressStatus(status);
       });
 
       setCutoutImgSrc(result.dataUrl);
       setInitialCutoutSrc(result.dataUrl);
+      setRawCutoutSrc(result.rawCutoutDataUrl || result.dataUrl);
 
       // Reset history
       const initialBg: BackgroundConfig = {
@@ -369,6 +373,27 @@ export default function App() {
     }
   };
 
+  // Switch background removal level (Suave, Estándar, Profundo) with instant canvas recalculation
+  const handleSelectRemovalLevel = async (newLevel: RemovalLevel) => {
+    setRemovalLevel(newLevel);
+    const baseSource = rawCutoutSrc || initialCutoutSrc || cutoutImgSrc;
+    if (baseSource) {
+      try {
+        setIsLoading(true);
+        setProgressPercent(65);
+        setProgressStatus(
+          `Aplicando nivel ${newLevel === 'soft' ? 'Suave' : newLevel === 'deep' ? 'Profundo' : 'Estándar'}...`
+        );
+        const refinedUrl = await applyRemovalLevelToCutout(baseSource, newLevel);
+        handleApplyImageEdit(refinedUrl);
+      } catch (err) {
+        console.error('Error al cambiar nivel de recorte:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   // Export & Download
   const handleExport = async () => {
     try {
@@ -430,6 +455,7 @@ export default function App() {
           setOriginalImgSrc(null);
           setCutoutImgSrc(null);
           setInitialCutoutSrc(null);
+          setRawCutoutSrc(null);
         }}
         onExport={handleExport}
         onCopyClipboard={handleCopyClipboard}
@@ -444,6 +470,8 @@ export default function App() {
             isLoading={isLoading}
             progressText={progressStatus}
             progressPercent={progressPercent}
+            selectedLevel={removalLevel}
+            onSelectLevel={setRemovalLevel}
           />
         </main>
       ) : (
@@ -464,6 +492,8 @@ export default function App() {
             brushSettings={brushSettings}
             onUpdateBrushSettings={(b) => setBrushSettings((prev) => ({ ...prev, ...b }))}
             onApplyImageEdit={handleApplyImageEdit}
+            removalLevel={removalLevel}
+            onSelectRemovalLevel={handleSelectRemovalLevel}
           />
 
           {/* Right Editing Sidebar */}
@@ -504,6 +534,8 @@ export default function App() {
             brushSettings={brushSettings}
             onUpdateBrushSettings={(b) => setBrushSettings((prev) => ({ ...prev, ...b }))}
             onResetCutoutToOriginal={handleResetCutoutToOriginal}
+            removalLevel={removalLevel}
+            onSelectRemovalLevel={handleSelectRemovalLevel}
           />
         </div>
       )}

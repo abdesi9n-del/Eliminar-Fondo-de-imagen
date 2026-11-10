@@ -24,7 +24,9 @@ import {
   Sun,
   Contrast,
   Image as ImageIcon,
-  Copy
+  Copy,
+  Feather,
+  Zap
 } from 'lucide-react';
 import { 
   BackgroundConfig, 
@@ -35,9 +37,10 @@ import {
   ToolMode, 
   BrushSettings,
   MagicWandSettings,
+  RemovalLevel,
   AspectRatioCategory 
 } from '../types';
-import { CANVAS_PRESETS, STUDIO_PALETTE_COLORS, STUDIO_GRADIENTS } from '../data/presets';
+import { CANVAS_PRESETS, STUDIO_PALETTE_COLORS, STUDIO_GRADIENTS, REMOVAL_LEVELS } from '../data/presets';
 
 interface SidebarTabsProps {
   canvasDims: CanvasDimensions;
@@ -63,6 +66,8 @@ interface SidebarTabsProps {
   brushSettings: BrushSettings;
   onUpdateBrushSettings: (b: Partial<BrushSettings>) => void;
   onResetCutoutToOriginal: () => void;
+  removalLevel: RemovalLevel;
+  onSelectRemovalLevel: (level: RemovalLevel) => void;
 }
 
 type TabType = 'canvas' | 'background' | 'subject' | 'brush' | 'export';
@@ -91,6 +96,8 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = ({
   brushSettings,
   onUpdateBrushSettings,
   onResetCutoutToOriginal,
+  removalLevel,
+  onSelectRemovalLevel,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('canvas');
   const [presetCategory, setPresetCategory] = useState<string>('all');
@@ -869,13 +876,79 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = ({
           </div>
         )}
 
-        {/* ================= TAB 4: PINCEL DE RETOQUE ================= */}
         {/* ================= TAB 4: RETOQUE / ELIMINAR PARTES ================= */}
         {activeTab === 'brush' && (
           <div className="space-y-6">
+            {/* 3 Niveles de Eliminación Automática */}
+            <div className="p-4 rounded-2xl bg-neutral-950/80 border border-neutral-700/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-indigo-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-200">
+                    Nivel de Eliminación Automática
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-semibold">
+                  3 Niveles
+                </span>
+              </div>
+
+              <p className="text-[11px] text-neutral-400">
+                Ajusta la sensibilidad del recorte para cabello fino, retratos o productos sin halos:
+              </p>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                {REMOVAL_LEVELS.map((lvl) => {
+                  const isSelected = removalLevel === lvl.id;
+                  return (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      onClick={() => onSelectRemovalLevel(lvl.id)}
+                      className={`p-2.5 rounded-xl border text-center flex flex-col items-center justify-between transition-all ${
+                        isSelected
+                          ? 'bg-indigo-600/25 border-indigo-500 text-white shadow-sm ring-1 ring-indigo-500/50'
+                          : 'bg-neutral-850 border-neutral-750 text-neutral-400 hover:text-white hover:bg-neutral-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center mb-1">
+                        {lvl.id === 'soft' && <Feather className={`w-3.5 h-3.5 ${isSelected ? 'text-indigo-400' : 'text-neutral-400'}`} />}
+                        {lvl.id === 'standard' && <Sparkles className={`w-3.5 h-3.5 ${isSelected ? 'text-indigo-400' : 'text-neutral-400'}`} />}
+                        {lvl.id === 'deep' && <Zap className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-400' : 'text-neutral-400'}`} />}
+                      </div>
+                      <span className={`text-[11px] font-bold block ${isSelected ? 'text-white' : 'text-neutral-300'}`}>
+                        {lvl.id === 'soft' ? 'Suave' : lvl.id === 'standard' ? 'Estándar' : 'Profundo'}
+                      </span>
+                      <span className="text-[9px] text-neutral-400 mt-0.5">
+                        {lvl.tag}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Description of current active level */}
+              {(() => {
+                const current = REMOVAL_LEVELS.find((l) => l.id === removalLevel);
+                if (!current) return null;
+                return (
+                  <div className="p-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-[11px] text-neutral-300 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-indigo-400">{current.name}:</span>
+                      <span className="text-[10px] text-neutral-400">{current.tag}</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-300 leading-snug">{current.description}</p>
+                    <div className="text-[10px] text-neutral-400 pt-0.5">
+                      <span className="text-neutral-300 font-semibold">Ideal: </span>{current.idealFor}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-neutral-300 block mb-2">
-                Herramientas de Retoque
+                Herramientas de Retoque Manual
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button

@@ -1,4 +1,4 @@
-import { CanvasPreset, GradientConfig, SampleImage } from '../types';
+import { CanvasPreset, GradientConfig, RemovalLevelInfo, SampleImage } from '../types';
 
 export const CANVAS_PRESETS: CanvasPreset[] = [
   // E-Commerce
@@ -255,5 +255,32 @@ export const SAMPLE_IMAGES: SampleImage[] = [
     title: 'Mascota / Perro',
     category: 'Animales',
     url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=900&q=80',
+  },
+];
+
+export const REMOVAL_LEVELS: RemovalLevelInfo[] = [
+  {
+    id: 'soft',
+    name: 'Suave / Conservador',
+    tag: 'Detalle Fino',
+    icon: 'feather',
+    description: 'Conserva cabello fino, transparencias y bordes sutiles sin recortar de más.',
+    idealFor: 'Retratos, pelo rizado, mascotas, velos, vidrio o ropa vaporosa.',
+  },
+  {
+    id: 'standard',
+    name: 'Estándar / Equilibrado',
+    tag: 'Recomendado',
+    icon: 'sparkles',
+    description: 'Balance ideal entre recorte limpio y retención de contornos naturales.',
+    idealFor: 'La mayoría de fotos, moda, retratos generales y fotos de personas.',
+  },
+  {
+    id: 'deep',
+    name: 'Profundo / Nítido',
+    tag: 'Cero Halos',
+    icon: 'zap',
+    description: 'Recorte estricto que elimina halos residuales y bordes claros/verdes del fondo anterior.',
+    idealFor: 'Productos para e-commerce (Amazon/Shopify), zapatillas, botellas, packaging y muebles.',
   },
 ];
